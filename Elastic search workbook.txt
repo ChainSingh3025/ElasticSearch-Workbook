@@ -1,0 +1,584 @@
+﻿Elastic search :
+
+
+I am omitting -H ‘“Content-Type”: “application/json”’ in curl request but it has to placed in every request.
+
+
+=========================================================
+1. creating index with mapping:
+
+
+below down created movie index with mapping associated it . Mappings takes properties field and in that properties we have term for that document.
+
+
+-----------------------------------------------------------------------------------------------
+request : 
+
+
+raider@Georgian:~$ curl -XPUT 127.0.0.1:9200/movies -d '
+{  "mappings": {
+                 "properties" : {
+                                 "year" : {
+                                            "type":"date"
+                                   },
+                                  "category" : {
+                                              "type":"keyword"
+                                              }
+                                }
+                   }
+}'
+
+
+
+
+response : {"acknowledged":true,"shards_acknowledged":true,"index":"movies"}
+----------------------------------------------------------------------------------------------
+
+
+=========================================================
+2. get mapping of movie  index
+
+
+------------------------------------------------------------------------------------------
+request : 
+
+
+curl -XGET 127.0.0.1:9200/movies/_mapping
+
+
+response :
+ 
+{"movies":{"mappings":{"properties":{"category":{"type":"keyword"},"year":{"type":"date"}}}}}
+
+
+-----------------------------------------------------------------------------------------------------
+
+
+===========================================================
+3. creating movie document in movie index
+
+
+------------------------------------------------------------------------------------------------
+request 1 :   here we are creating document for movie index (which is same as row in table ). 
+_doc is type of index movies (but it is deprecated after Elasticsearch 7.0). _doc/1 -> this 1 is id for this particular document and after -d we have added the movie detail. 
+
+
+
+
+curl -XPOST 127.0.0.1:9200/movies/_doc/1 -d '
+{        "genre" : ["IMAX","SCI-FI"],
+          "year" : 2014,
+         "title" : "Interstellar",
+         "category" : "Car Wash"
+}'
+
+
+response : In response , we are seeing document is created and all detail . If you put updated value against Id 1 then it will be updated 
+
+
+{"_index":"movies","_type":"_doc","_id":"1","_version":1,"result":"created","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":0,"_primary_term":1}
+
+
+
+
+-------------------------------------------------------------------------------
+request 2 : 
+
+
+curl -XPOST 127.0.0.1:9200/movies/_doc/1 -d '
+{        "genre" : ["COMEDY","SCI-FI"],
+         "year" : 2014,
+         "title" : "PK",
+         "category" : "Car Sedan"
+}'
+
+
+
+
+response :  This response show that document 1 is updated.
+
+
+
+
+{"_index":"movies","_type":"_doc","_id":"1","_version":2,"result":"updated","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":1,"_primary_term":1}
+
+
+-------------------------------------------------------------------------
+
+
+
+
+==========================================================
+4. Getting all document stored in index movies
+
+
+
+
+-------------------------------------------------------------------------------------
+request : 
+
+
+curl -XGET 127.0.0.1:9200/movies/_search?pretty 
+
+
+response : {
+  "took" : 4,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 2,
+      "relation" : "eq"
+    },
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "_doc",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_source" : {
+          "genre" : [
+            "COMEDY",
+            "SCI-FI"
+          ],
+          "year" : 2014,
+          "title" : "PK",
+          "category" : "Car Sedan"
+        }
+      },
+      {
+        "_index" : "movies",
+        "_type" : "_doc",
+        "_id" : "2",
+        "_score" : 1.0,
+        "_source" : {
+          "genre" : [
+            "IMAX",
+            "SCI-FI"
+          ],
+          "year" : 2014,
+          "title" : "Interstellar",
+          "category" : "Car Wash"
+        }
+      }
+    ]
+  }
+}
+
+
+It has our two document , which we have stored in movies index.
+
+
+
+
+5.  Bulk document creation in movies index
+
+
+{ "create" : { "_index" : "movies", "_id" : "3" } }
+{ "id": "135569", "category":"interior cremaic","title" : "Star Trek Beyond", "year":2016 , "genre":["Action", "Adventure", "Sci-Fi>
+{ "create" : { "_index" : "movies", "_id" : "4" } }
+{ "id": "122886", "category":"exterior cremaic","title" : "Star Wars: Episode VII - The Force Awakens", "year":2015 , "genre":["Act>
+{ "create" : { "_index" : "movies", "_id" : "5" } }
+{ "id": "109487","category":"interior fan", "title" : "Interstellar", "year":2014 , "genre":["Sci-Fi", "IMAX"] }
+
+
+above json is a input data to document creation. It start with ‘create’ key which has index value and its id.
+Below json has document value.
+
+
+ curl -XPUT 127.0.0.1:9200/_bulk?pretty -d ‘
+{ "create" : { "_index" : "movies", "_id" : "3" } }
+{ "id": "135569", "category":"interior cremaic","title" : "Star Trek Beyond", "year":2016 , "genre":["Action", "Adventure", "Sci-Fi>
+{ "create" : { "_index" : "movies", "_id" : "4" } }
+{ "id": "122886", "category":"exterior cremaic","title" : "Star Wars: Episode VII - The Force Awakens", "year":2015 , "genre":["Act>
+{ "create" : { "_index" : "movies", "_id" : "5" } }
+{ "id": "109487","category":"interior fan", "title" : "Interstellar", "year":2014 , "genre":["Sci-Fi", "IMAX"] }’
+
+
+Other way to bulk import is 
+
+
+curl -XPUT 127.0.0.1:9200/_bulk?pretty –data-binary @movies.json
+
+
+movies.json contain bulk documents in json format
+
+
+
+
+
+
+7.  Update an existing document.
+
+
+Version is maintained for every document in ES. When document is updated its version is incremented. Previous version document are later deleted by ES itself.
+
+
+Request : 
+curl -XPOST 127.0.0.1:9200/movies/_doc/{id}/_update -d ‘
+{
+     “doc” : {
+                  “title”: “<updated title value >” , 
+                “category”: “<updated category value”
+                }
+}’
+
+
+I have passed 7 as  doc id
+
+
+
+
+Response : 
+{"_index":"movies","_type":"_doc","_id":"7","_version":2,"result":"updated","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":9,"_primary_term":3}
+
+
+8. Search particular document with its doc id
+
+
+Request :  
+
+
+curl -XGET 127.0.0.1:9200/movies/_doc/7?pretty
+
+
+
+
+Response : 
+
+
+{
+  "_index" : "movies",
+  "_type" : "_doc",
+  "_id" : "7",     // doc id 
+  "_version" : 2,
+  "_seq_no" : 9,
+  "_primary_term" : 3,
+  "found" : true,
+  "_source" : {
+    "id" : "1924",
+    "category" : "fan park",
+    "title" : "Plan 9 from inner space",
+    "year" : 1959,
+    "genre" : [
+      "Horror",
+      "Sci-Fi"
+    ]
+  }
+}
+
+
+
+
+9.  Deleting document in movie index
+
+
+Just use the DELETE method and pass the document id.
+
+
+Request : curl -XDELETE 127.0.0.1:9200/movies/_doc/7
+
+
+Response : 
+{
+  "_index" : "movies",
+  "_type" : "_doc",
+  "_id" : "7",
+  "_version" : 3,
+  "result" : "deleted",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 10,
+  "_primary_term" : 3
+}
+
+
+
+
+
+
+10.  Term search in movie index
+
+
+Just use the XGET method 
+
+
+Request : curl -XGET 127.0.0.1:9200/movies/_search?q=Dark
+
+
+
+
+11. Search in movies index
+
+
+Request : curl -XGET 127.0.0.1:9200/movies/_search?pretty -d {
+ “query” : {
+        “match” : {
+                “title”: “dark”
+
+
+                }
+        }
+}
+
+
+Request : curl -XGET 127.0.0.1:9200/movies/_search?pretty -d {
+ “query” : {
+        “match_phrase” : {
+                “genre”: “sci”
+
+
+                }
+        }
+}
+
+
+
+
+12. Delete index
+
+
+Request : 
+
+
+curl -XDELETE 127.0.0.1:9200/movies
+
+
+Response : { “acknowledged”:true}
+
+
+Point to ponder : 
+If you want any of your field of document to be search as full text search , then set its type as keyword during creating index and put mapping .
+By putting its type as keyword , ES will not analyse(no analyzer will be runned on this field ) . Rest all the are analyzed and 
+
+
+
+
+13. Creating index with proper mapping.
+
+
+
+
+curl -XPUT 127.0.0.1:9200/movies -d ‘{
+“mapping”: {
+                “properties” : {
+                        “id” : {
+                                “type”:”integer”
+                        },
+                        “year” : {
+                                “type”:”date”
+                        },
+                        “genre” : {
+                                “type”:”keyword” 
+                        },
+                        “category”: { 
+                                “type”:”keyword”
+                        },
+                        “title”: {
+                                “type”:”text” , “analyzer”:”english” // we can define analyzer for particular field of document
+                }
+        }
+}’
+
+
+
+
+Response : 
+
+
+{
+  "acknowledged" : true,
+  "shards_acknowledged" : true,
+  "index" : "movies"
+}
+
+
+SEARCHING IN ES :  
+
+
+A. Query lite : This search is Called URI Search . 
+ 
+Request : curl --request GET 'http://localhost:9200/movies/_search?q=title:star&pretty'
+                                                             or
+             curl -XGET 127.0.0.1:9200/movies/_search?q=title:star&pretty
+this is search request which search for all document in movies index which has title as star
+
+
+Response : It will return all document with title as star
+{
+  "took" : 5,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 2,
+      "relation" : "eq"
+    },
+    "max_score" : 0.919734,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "_doc",
+        "_id" : "3",
+        "_score" : 0.919734,
+        "_source" : {
+          "id" : "135569",
+          "category" : "interior cremaic",
+          "title" : "Star Trek Beyond",
+          "year" : 2016,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      },
+      {
+        "_index" : "movies",
+        "_type" : "_doc",
+        "_id" : "4",
+        "_score" : 0.666854,
+        "_source" : {
+          "id" : "122886",
+          "category" : "exterior cremaic",
+          "title" : "Star Wars: Episode VII - The Force Awakens",
+          "year" : 2015,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Fantasy",
+            "Sci-Fi",
+            "IMAX"
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+
+
+curl GET 'http://localhost:9200/movies/_search?q=+year>2010+title:star&pretty=true'
+
+
+conditonal query which start with + (for boolean) as year > 2010 and title as star.
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+B. Request Body Search : Here you pass json as request body for document search.
+
+
+
+
+Previous URL search can be depicted as Request Body Search as --> 
+
+
+curl -XGET 127.0.0.1:9200/movies/_search?pretty -d ‘{
+  “query” : {
+                “match” : {
+                        “title”:”star”
+                }
+        }
+}’
+
+
+
+
+Point to ponder : In GET request of Rest Api , there is not request body as such.
+
+
+Filters ask a yes /no question of your data.
+Queries return data in terms of relevance.
+
+
+Use Filters when you can – they are faster and cacheable.
+
+
+Curl -XGET 127.0.0.1/movies/_search?pretty -d ‘{
+“query” : {
+        “bool” : {
+                “must” : {  “title”:”star” },
+                “filter”        : { “range”:  { “year”  :  { “gte”: 2015 }}}
+        }
+}}’
+
+
+Here within a query we have a Boolean query ( which means you can combine things together ) and equivalent to AND within Boolean query is called Must . So by saying Must term title as star, we are saying that this query must contain the term start with in title to be valid result .
+Then we are going further to filter that result by having a range filter that contains year greater than or equal to 2010
+
+
+
+
+SOME TYPES OF FILTER : 
+
+
+Term : filter by exact values 
+{ “term” : { “year”:2010 }}
+
+
+Terms : Match if any exact values in a list match 
+
+
+{ “terms” : { “genre” : [“Sci-Fi”,”Action”] }} 
+
+
+Bool : combine filters with boolean logic (must , must_not , should ) 
+
+
+Exists : Find document where a field exists 
+
+
+{ “exists” : { “field” : “tags” }}
+
+
+Missing : Find document where a field is missing 
+
+
+{ “missing”  : { “field” : “tags” }} 
+Range : Find         number or dates in a given range (gt , gte , lt , lte )
+gt (greater than ), gte (greater than equal to ) , lt (less than ) , lte (less than equal to )
+
+
+{ “range” : {“year”:  { “gte”  :2000 }}}
+
+
+
+
+SOME TYPES OF QUERIES : 
+
+
+Match_all : return all documents and is a default. Normally used with filter . 
+
+
+{ “match_all” :  {}}
+
+
+Match : Search analyzed result , such as         full text search.
+
+
+{ “match” : { “title” : “star” }}
